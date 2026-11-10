@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Obrázek a jeho kód</title>
+<style>
+  :root { --bg:#f6f6f4; --fg:#1a1a1a; --muted:#666; --card:#fff; --line:#333; --accent:#2b6cb0; --ok:#2f855a; --bad:#c53030; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:480px; margin:0 auto; padding:12px 16px 32px; }
+  h1 { font-size:1.25rem; margin:4px 0 12px; }
+  .tabs { display:flex; gap:8px; margin-bottom:12px; }
+  .tabs button { flex:1; padding:10px; font:inherit; font-weight:600; border:2px solid var(--line); border-radius:10px; background:var(--card); color:var(--fg); }
+  .tabs button[aria-selected="true"] { background:var(--fg); color:#fff; }
+  .card { background:var(--card); border-radius:12px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .card p { margin:0 0 8px; }
+  .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:1.05rem; word-break:break-all; letter-spacing:.04em; background:#f0f0ec; padding:8px; border-radius:8px; }
+  .rows div { white-space:nowrap; }
+  .grid { display:grid; grid-template-columns:repeat(5,1fr); width:100%; aspect-ratio:1; border:2px solid var(--line); touch-action:none; user-select:none; -webkit-user-select:none; }
+  .grid div { border:1px solid #999; background:#fff; }
+  .grid div.bad { outline:4px solid var(--bad); outline-offset:-4px; }
+  .palette { display:flex; gap:10px; justify-content:center; margin:12px 0; flex-wrap:wrap; }
+  .palette button { width:56px; height:56px; border-radius:50%; border:3px solid #999; }
+  .palette button[aria-pressed="true"] { border:5px solid var(--accent); transform:scale(1.08); }
+  .palette label { display:flex; flex-direction:column; align-items:center; gap:4px; font-size:.8rem; color:var(--muted); }
+  .actions { display:flex; gap:8px; }
+  .actions button { flex:1; padding:12px; font:inherit; font-weight:600; border-radius:10px; border:2px solid var(--line); background:var(--card); color:var(--fg); }
+  .actions .primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  #msg { min-height:1.5em; text-align:center; font-weight:600; margin-top:10px; }
+  #msg.ok { color:var(--ok); } #msg.bad { color:var(--bad); }
+  .example { display:flex; gap:12px; align-items:center; }
+  .mini { display:grid; grid-template-columns:repeat(2,28px); grid-auto-rows:28px; border:2px solid var(--line); }
+  .mini div { border:1px solid #999; }
+  .oneline { white-space:nowrap; overflow:hidden; letter-spacing:0; font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-variant-numeric:tabular-nums; padding:8px 6px; }
+  .fill { display:grid; grid-template-columns:auto auto; justify-content:start; gap:6px 10px; align-items:center; margin:6px 0 8px; }
+  .fill span { display:flex; align-items:center; gap:6px; }
+  .fill i { width:16px; height:16px; border:1px solid #999; border-radius:3px; display:inline-block; }
+  .fill input { width:3.2em; font:1.05rem ui-monospace, Menlo, Consolas, monospace; text-align:center; padding:4px; border:2px solid #999; border-radius:6px; }
+  .fill input.ok { border-color:var(--ok); } .fill input.bad { border-color:var(--bad); }
+  .small { padding:8px 12px; font:inherit; font-size:.9rem; border-radius:8px; border:2px solid var(--line); background:var(--card); color:var(--fg); }
+  .small:disabled { opacity:.45; }
+  #codeMsg { font-size:.9rem; font-weight:600; margin-left:6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Obrázek a jeho kód</h1>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-task="1" aria-selected="true">Černobílé</button>
+    <button role="tab" data-task="4" aria-selected="false">Barevné</button>
+  </div>
+
+  <section class="card" id="zadani"></section>
+
+  <div class="grid" id="grid" aria-label="Mřížka 5 × 5"></div>
+  <div class="palette" id="palette"></div>
+  <div class="actions">
+    <button id="clear">Vymazat</button>
+    <button id="check" class="primary">Zkontrolovat</button>
+  </div>
+  <div id="msg" role="status"></div>
+</main>
+
+<script>
+const COLORS = { W:'#ffffff', K:'#111111', R:'#e53e3e', G:'#38a169', Y:'#f6e05e' };
+const NAMES  = { W:'bílá', K:'černá', R:'červená', G:'zelená', Y:'žlutá' };
+
+const TASKS = {
+  1: {
+    palette: ['K','W'],
+    // 0 = bílá, 1 = černá
+    solution: '0101011111111110111000100'.split('').map(c => c === '1' ? 'K' : 'W'),
+    html: `<p><b>Vybarvi tabulku podle kódu.</b> 0 = bílá, 1 = černá. Postupuj po řádcích.</p>
+      <div class="code oneline" id="fit">0 1 0 1 0 1 1 1 1 1 1 1 1 1 1 0 1 1 1 0 0 0 1 0 0</div>
+      <p style="margin-top:8px">Jaký obrázek se skrývá za kódem?</p>`,
+  },
+  4: {
+    palette: ['R','G','Y','W'],
+    // bílá 00, červená 01, zelená 10, žlutá 11
+    solution: (() => {
+      const map = { '00':'W', '01':'R', '10':'G', '11':'Y' };
+      const c = '00010101000101110101000101010000001000000010101000';
+      return c.match(/../g).map(p => map[p]);
+    })(),
+    html: `<p><b>Barevný kód.</b> Zjisti z ukázky, jak se barvy kódují.</p>
+      <div class="example">
+        <div class="mini"><div style="background:${'#e53e3e'}"></div><div style="background:${'#f6e05e'}"></div><div style="background:#fff"></div><div style="background:${'#38a169'}"></div></div>
+        <div>Kód: <span class="code" style="white-space:nowrap;letter-spacing:0">0 1 1 1 0 0 1 0</span></div>
+      </div>
+      <p style="margin:10px 0 0">Zapiš, jaký kód má každá barva:</p>
+      <div class="fill">
+        ${['W','R','G','Y'].map(k => `<span><i style="background:${COLORS[k]}"></i>${NAMES[k]}</span><input data-k="${k}" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="kód barvy ${NAMES[k]}">`).join('')}
+      </div>
+      <button class="small" id="checkCodes" disabled>Zkontrolovat kódy barev</button><span id="codeMsg"></span>
+      <p style="margin-top:10px">Stejným způsobem vybarvi obrázek podle tohoto kódu (postupuj po řádcích):</p>
+      <div class="code rows">
+        <div>00 01 01 01 00</div><div>01 01 11 01 01</div><div>00 01 01 01 00</div><div>00 00 10 00 00</div><div>00 10 10 10 00</div>
+      </div>`,
+  },
+};
+
+const grid = document.getElementById('grid');
+const pal = document.getElementById('palette');
+const msg = document.getElementById('msg');
+let task = 1, current = 'K', painting = false;
+const state = { 1: Array(25).fill('W'), 4: Array(25).fill('W') }; // each task keeps its own colouring
+
+for (let i = 0; i < 25; i++) { const d = document.createElement('div'); d.dataset.i = i; grid.appendChild(d); }
+const cells = [...grid.children];
+
+function render() {
+  cells.forEach((c, i) => { c.style.background = COLORS[state[task][i]]; c.classList.remove('bad'); });
+}
+
+function load(t) {
+  task = t;
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.task == t));
+  document.getElementById('zadani').innerHTML = TASKS[t].html;
+  pal.innerHTML = '';
+  TASKS[t].palette.forEach(k => {
+    const l = document.createElement('label');
+    const b = document.createElement('button');
+    b.style.background = COLORS[k]; b.dataset.k = k; b.setAttribute('aria-label', NAMES[k]);
+    b.onclick = () => select(k);
+    l.append(b, NAMES[k]); pal.appendChild(l);
+  });
+  select(TASKS[t].palette[0]);
+  msg.textContent = ''; msg.className = '';
+  render();
+  if (t === 1) fitCode();
+  if (t === 4) setupCodes();
+}
+
+// shrink the task-1 code until it fits on one line at any screen width
+function fitCode() {
+  const el = document.getElementById('fit');
+  if (!el) return;
+  let s = 24;
+  el.style.fontSize = s + 'px';
+  while (el.scrollWidth > el.clientWidth && s > 6) el.style.fontSize = (s -= 0.5) + 'px';
+}
+addEventListener('resize', () => task === 1 && fitCode());
+
+// task 4: optional check of colour codes, enabled only when all four are filled
+const CODE = { W:'00', R:'01', G:'10', Y:'11' };
+const codeInputs = {};
+function setupCodes() {
+  const inputs = [...document.querySelectorAll('.fill input')];
+  const btn = document.getElementById('checkCodes'), out = document.getElementById('codeMsg');
+  inputs.forEach(inp => {
+    inp.value = codeInputs[inp.dataset.k] || '';
+    inp.oninput = () => {
+      inp.value = inp.value.replace(/[^01]/g, '').slice(0, 2);
+      codeInputs[inp.dataset.k] = inp.value;
+      inp.classList.remove('ok', 'bad'); out.textContent = '';
+      btn.disabled = !inputs.every(i => i.value.length === 2);
+    };
+  });
+  btn.disabled = !inputs.every(i => i.value.length === 2);
+  btn.onclick = () => {
+    let good = 0;
+    inputs.forEach(i => { const ok = i.value === CODE[i.dataset.k]; i.classList.toggle('ok', ok); i.classList.toggle('bad', !ok); good += ok; });
+    out.style.color = good === 4 ? 'var(--ok)' : 'var(--bad)';
+    out.textContent = good === 4 ? 'Všechny kódy jsou správně.' : `Správně: ${good} ze 4.`;
+  };
+}
+
+function select(k) {
+  current = k;
+  pal.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === k));
+}
+
+function paintAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  if (!el || el.parentNode !== grid) return;
+  const i = +el.dataset.i;
+  state[task][i] = current;
+  el.style.background = COLORS[current];
+  el.classList.remove('bad');
+}
+
+// pointer events cover finger and mouse; drag paints across cells
+grid.addEventListener('pointerdown', e => { painting = true; grid.setPointerCapture(e.pointerId); paintAt(e.clientX, e.clientY); });
+grid.addEventListener('pointermove', e => { if (painting) paintAt(e.clientX, e.clientY); });
+['pointerup','pointercancel'].forEach(ev => grid.addEventListener(ev, () => painting = false));
+
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => load(+b.dataset.task));
+document.getElementById('clear').onclick = () => { state[task].fill('W'); render(); msg.textContent = ''; };
+document.getElementById('check').onclick = () => {
+  const sol = TASKS[task].solution;
+  let wrong = 0;
+  cells.forEach((c, i) => { const bad = state[task][i] !== sol[i]; c.classList.toggle('bad', bad); wrong += bad; });
+  msg.className = wrong ? 'bad' : 'ok';
+  msg.textContent = wrong ? `Špatně vybarvených políček: ${wrong}. Oprav je (jsou orámovaná).` : 'Výborně, obrázek je správně!';
+};
+
+load(1);
+</script>
+</body>
+</html>
